@@ -1,4 +1,4 @@
-% Problema del conjunto dominante mínimo
+% Problema del conjunto mínimo cubridor - Ascenso en la montaña
 
 % Matriz de adyacencia simétrica A (grafo no dirigido)
 A = [0 1 0 0 1
