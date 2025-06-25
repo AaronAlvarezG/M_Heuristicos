@@ -4,10 +4,6 @@
 %%% entrada
 %%%
 %% Problema
-
-
-contador_evaluaciones = 0;
-
 clear all
 close all
 a=20;
@@ -15,14 +11,18 @@ b=.2;
 c=2*pi();
 dimenciones=2;
 %%% parametros metod
-ISC=1000;
-NIACT=100;
-TI=3000;
-TF=.01;
-alpha=.99;
-vecinos=5;
-distancia_max=2;
-corridas=30;
+ISC=1000; % Iteraciones sin mejora permitidas antes de reiniciar a la mejor solución conocida.
+NIACT=100;% Iteraciones internas por temperatura
+TI=2000; % Temperatura inicial
+TF=.01; % Temperatura final
+alpha=.99; % Factor de enfriamiento
+vecinos=5; % Número de vecinos generados por iteración
+distancia_max=4; % Máximo desplazamiento aleatorio por dimensión
+corridas=30; % Número de ejecuciones independientes
+cont_eval = 0; % Cantidad de llamadas a la funcion evaluar
+
+evaluaciones = zeros(corridas, 1);
+
 for corrida=1:corridas
     TA=TI;
     %%%% generar una solucion inial
@@ -31,7 +31,7 @@ for corrida=1:corridas
     end
     contador=0;
     contador_1=0;
-    objetivo(corrida,1)=evaluar(sol(corrida,:),dimenciones,a,b,c);
+    [cont_eval, objetivo(corrida,1)]=evaluar(sol(corrida,:),dimenciones,a,b,c, cont_eval);
     %%% mejo_sol_visitada
     ms(corrida,:)=sol(corrida,:);
     mso(corrida,:)=objetivo(corrida,1);
@@ -49,7 +49,7 @@ for corrida=1:corridas
                         sol_vecionos(v,k)=100;
                     end
                 end
-                objetivo_vecino(v,1)=evaluar(sol_vecionos(v,:),dimenciones,a,b,c);
+                [cont_eval, objetivo_vecino(v,1)]=evaluar(sol_vecionos(v,:),dimenciones,a,b,c, cont_eval);
             end
             %%%% Criterio metropoli
             [ob_v, pos_v]=min(objetivo_vecino);
@@ -80,14 +80,15 @@ for corrida=1:corridas
         end
         TA=alpha*TA;
     end
+    evaluaciones(corrida) = cont_eval;
+    cont_eval = 0;
 end
-function [ob]=evaluar(sol,dimenciones,a,b,c, contador_evaluaciones)
-
-contador_evaluaciones = contador_evaluaciones + 1;
-
-ob=-a*(exp(-b*sqrt((1/dimenciones)*sum(sol.^2))))-exp((1/dimenciones)*sum(cos(c*sol)))+a+exp(1);
+function [cont, ob]=evaluar(sol,dimenciones,a,b,c, contador)
+    contador = contador + 1;
+    ob=-a*(exp(-b*sqrt((1/dimenciones)*sum(sol.^2))))-exp((1/dimenciones)*sum(cos(c*sol)))+a+exp(1);
+    cont = contador;
 end
-
+disp('============================================================')
 % Estadísticas de resultados:
 fprintf('Promedio: %.4f\n', mean(objetivo));
 fprintf('Mínimo: %.4f\n', min(objetivo));
@@ -102,4 +103,13 @@ title('Distribución de soluciones en 30 corridas')
 corridas_fallidas = find(objetivo >= 20);
 fprintf('Corridas que no mejoraron: %s\n', mat2str(corridas_fallidas));
 
-fprintf('Cantidad de llamadas a la funcion objetivo: %.4f\n', );
+fprintf('Evaluaciones promedio por corrida: %.2f\n', mean(evaluaciones)/100)
+
+scatter(evaluaciones, objetivo)
+xlabel('Evaluaciones de la función')
+ylabel('Valor final de Ackley')
+title('Eficiencia por corrida')
+
+% 18,825,030
+% 18,825,030
+% 627,501
