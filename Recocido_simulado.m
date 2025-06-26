@@ -3,24 +3,26 @@
 %%%
 %%% entrada
 %%%
-%% Problema
+%% Parámetros Ackley
 clear all
 close all
 a=20;
 b=.2;
 c=2*pi();
 dimenciones=2;
-%%% parametros metod
+
+% Parametros Recocido Simulado
 ISC=1000; % Iteraciones sin mejora permitidas antes de reiniciar a la mejor solución conocida.
 NIACT=100;% Iteraciones internas por temperatura
 TI=2000; % Temperatura inicial
 TF=.01; % Temperatura final
-alpha=.99; % Factor de enfriamiento
+alpha=.9; % Factor de enfriamiento
 vecinos=5; % Número de vecinos generados por iteración
-distancia_max=4; % Máximo desplazamiento aleatorio por dimensión
+distancia_max=2; % Máximo desplazamiento aleatorio por dimensión
 corridas=30; % Número de ejecuciones independientes
-cont_eval = 0; % Cantidad de llamadas a la funcion evaluar
 
+% Otros Parámetros 
+cont_eval = 0; % Cantidad de llamadas a la funcion evaluar
 evaluaciones = zeros(corridas, 1);
 
 for corrida=1:corridas
@@ -89,12 +91,17 @@ function [cont, ob]=evaluar(sol,dimenciones,a,b,c, contador)
     cont = contador;
 end
 disp('============================================================')
+% Mostrar los parámetros de entrada
+fprintf('Parámetros de entrada:\n');
+fprintf('ISC: %d, NIACT: %d, TI: %.2f, TF: %.2f, alpha: %.2f, vecinos: %d, distancia_max: %.2f, corridas: %d\n', ISC, NIACT, TI, TF, alpha, vecinos, distancia_max, corridas);
 % Estadísticas de resultados:
+disp('Resultados:')
 fprintf('Promedio: %.4f\n', mean(objetivo));
 fprintf('Mínimo: %.4f\n', min(objetivo));
 fprintf('Máximo: %.4f\n', max(objetivo));
 fprintf('Desviación estándar: %.4f\n', std(objetivo));
 
+figure;
 histogram(objetivo)
 xlabel('Valor de función Ackley')
 ylabel('Frecuencia')
@@ -105,6 +112,7 @@ fprintf('Corridas que no mejoraron: %s\n', mat2str(corridas_fallidas));
 
 fprintf('Evaluaciones promedio por corrida: %.2f\n', mean(evaluaciones)/100)
 
+figure;
 scatter(evaluaciones, objetivo)
 xlabel('Evaluaciones de la función')
 ylabel('Valor final de Ackley')
@@ -113,3 +121,4 @@ title('Eficiencia por corrida')
 % 18,825,030
 % 18,825,030
 % 627,501
+
