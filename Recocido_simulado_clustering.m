@@ -1,4 +1,4 @@
-% Asenso a la montaña para resilver clustering con optimización de k
+% Recocido simulado para resilver clustering con optimización de k
 datos = readtable('winequality-white.csv');
 % Normalizamos los valores de vinos
 X = table2array(normalize(datos)); % Normalizamos los valores de vinos
@@ -7,6 +7,11 @@ n = size(X,1);
 % Rango de k (número de clústeres)
 k_min = 2;
 k_max = 10;
+
+% Parámetros para Recocido Simulado
+T_inicial = 2000;
+T_final = 1e-3;
+alpha = 0.95; % factor de enfriamiento
 
 % Parámetros de asenso en la montaña
 max_inter_sin_mejora = 100;
@@ -36,8 +41,8 @@ for k=k_min: k_max
         eval_por_corrida_y_k(corrida,col_k) = eval_por_corrida_y_k(corrida,col_k) + 1;
         
         % Busca meejor vecino
-        mejora=0;
-        while mejora < max_inter_sin_mejora
+        T = T_inicial;
+        while T < T_final
             
             puntajes_vecinos=zeros(no_vecinos,1);
             vecinos = cell(no_vecinos, 1);
@@ -57,9 +62,9 @@ for k=k_min: k_max
             end
             % Buscar mínimo objetivo_vecino
             [mejor_valor, idx_mejor]=min(puntajes_vecinos);
-            if mejor_valor<puntajes_corrida(corrida)
+            if mejor_valor <= puntajes_corrida(corrida)
                 
-                asignacion_actual=vecinos{idx_mejor};
+                asignacion_actual = vecinos{idx_mejor};
                 
                 if abs(puntajes_corrida(corrida) - mejor_valor) < epsilon
                     mejor_puntaje = puntajes_corrida(corrida);
@@ -73,6 +78,8 @@ for k=k_min: k_max
             else
                 mejora=1+mejora;
             end
+
+            T = T*alpha;
         end
     end
     
@@ -117,7 +124,8 @@ grid on;
 %% Visualización PCA con última asignación (de k = 4, por ejemplo)
 % Proyectamos los datos a 2D con PCA para visualizar la asignación de clústeres.
 
-k_visual = 4 - k_min + 1 ;
+k = 4;
+k_visual = k - k_min + 1 ;
 [~, X_pca] = pca(X);              % PCA: todas las componentes
 X_reducido = X_pca(:, 1:2);       % Nos quedamos con las dos principales
 
@@ -125,7 +133,7 @@ figure;
 gscatter(X_reducido(:,1), X_reducido(:,2), asignaciones{k_visual}); % asignación generada para último k evaluado
 xlabel('Componente principal 1');
 ylabel('Componente principal 2');
-title(['Visualización PCA para k = ', num2str(k_visual)]);
+title(['Visualización PCA para k = ', num2str(k)]);
 legend('show');
 grid on;
 
