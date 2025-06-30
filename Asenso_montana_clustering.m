@@ -9,10 +9,10 @@ k_min = 2;
 k_max = 10;
 
 % Parámetros de asenso en la montaña
-max_inter_sin_mejora = 100;
+max_inter_sin_mejora = 1000;
 epsilon = .000000001; 
-no_vecinos = 5;
-no_corridas = 5;
+no_vecinos = 20;
+no_corridas = 30;
 
 % Incializar estructuras para evaluación
 no_evaluaciones_por_corrida_y_k = zeros(no_corridas, k_max - k_min + 1);
@@ -21,14 +21,14 @@ mejores_asignaciones_por_k = cell(k_max - k_min + 1,1);
 tiempos_por_k = zeros(k_max - k_min + 1,1);
 
 mejores_asignaciones_por_corrida = cell(k_max - k_min + 1, no_corridas);
-mejores_puntajes_por_corrida = cell(k_max - k_min + 1, no_corridas);
+historial_de_puntajes_por_corrida = cell(k_max - k_min + 1, no_corridas);
 
 % === Progreso general del proceso ===
 total_iteraciones = (k_max - k_min + 1) * no_corridas;
 contador_global = 0;
 disp('Avance: ');
 hora_actual = datetime('now', 'Format', 'HH:mm:ss');
-fprintf(' [%s]: %5.1f %% (k = 0, corrida = 0 de %2d)\n', hora_actual, 100 * contador_global / total_iteraciones, no_corridas);
+fprintf(' [%s]: %5.1f %% (k = 00, corrida = 00 de %2d)\n', hora_actual, 100 * contador_global / total_iteraciones, no_corridas);
 
 for k=k_min: k_max
     col_k = k - k_min + 1;
@@ -38,11 +38,15 @@ for k=k_min: k_max
     
     mejor_puntaje = inf; % Inicializa con un valor muy alto
     mejor_asignacion = []; % Variable para guardar la mejor asignación de clústeres
+    puntajes_iteracion = [];    
 
     for corrida=1:no_corridas
         % generar una solucion inicial
         asignacion_actual = randi(k,n,1);
-        puntajes_corrida(corrida,1)=evaluar(X, asignacion_actual, k); % Evaluar la calidad de esa solución
+        puntaje_actual = evaluar(X, asignacion_actual, k); % Evaluar la calidad de esa solución
+        puntajes_corrida(corrida,1) = puntaje_actual;
+        puntajes_iteracion(end + 1) = puntaje_actual;
+
         no_evaluaciones_por_corrida_y_k(corrida,col_k) = no_evaluaciones_por_corrida_y_k(corrida,col_k) + 1;
         
         % Busca mejor vecino
@@ -68,8 +72,10 @@ for k=k_min: k_max
             % Buscar mínimo objetivo_vecino
             [mejor_valor, idx_mejor]=min(puntajes_vecinos);
             if mejor_valor<puntajes_corrida(corrida)
-                puntajes_corrida(corrida)=mejor_valor;
-                asignacion_actual=vecinos{idx_mejor};
+                puntajes_corrida(corrida) = mejor_valor;
+                asignacion_actual = vecinos{idx_mejor};
+                puntajes_iteracion(end + 1) = mejor_valor;
+
                 if puntajes_corrida(corrida) - mejor_valor < epsilon
                     contador_sin_mejora = contador_sin_mejora + 1;
                 else
@@ -84,6 +90,10 @@ for k=k_min: k_max
                 contador_sin_mejora = contador_sin_mejora + 1;
             end             
         end
+        % Almacenar el mejor puntaje y asignación de la corrida actual
+        mejores_asignaciones_por_corrida{col_k} = mejor_asignacion;
+        historial_de_puntajes_por_corrida{col_k, corrida} = puntajes_iteracion;
+
         contador_global = contador_global + 1;
         hora_actual = datetime('now', 'Format', 'HH:mm:ss');
         fprintf(repmat('\b', 1, 50));
@@ -187,3 +197,13 @@ ylabel('Tiempo de ejecución (segundos)');
 title('Tiempo de ejecución por valor de k');
 grid on;
 
+%% Visualizar el historial de puntajes para alguna corrida
+
+k_ejemplo = 10; corrida_ejemplo = 1;
+
+figure;
+puntajes = historial_de_puntajes_por_corrida{k_ejemplo - k_min + 1, corrida_ejemplo};
+plot(puntajes, '-o');
+xlabel('Iteración');
+ylabel('Función objetivo');
+title(sprintf('Convergencia (k = %d, corrida = %d)', k_ejemplo, corrida_ejemplo));
