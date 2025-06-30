@@ -1,4 +1,4 @@
-% Asenso a la montaña para resilver clustering con optimización de k
+% Asenso a la montaña para resolver clustering con optimización de k
 datos = readtable('winequality-white.csv');
 % Normalizamos los valores de vinos
 X = table2array(normalize(datos)); % Normalizamos los valores de vinos
@@ -10,34 +10,44 @@ k_max = 10;
 
 % Parámetros de asenso en la montaña
 max_inter_sin_mejora = 100;
-epsilon = .000000001;
+epsilon = .000000001; 
 no_vecinos = 5;
 no_corridas = 5;
 
 % Incializar estructuras para evaluación
-eval_por_corrida_y_k = zeros(no_corridas, k_max - k_min + 1);
-mejor_objetivo_por_k = zeros(k_max - k_min + 1, 1);
-asignaciones = cell(k_max - k_min + 1,1);
+no_evaluaciones_por_corrida_y_k = zeros(no_corridas, k_max - k_min + 1);
+mejores_puntajes_por_k = zeros(k_max - k_min + 1, 1);
+mejores_asignaciones_por_k = cell(k_max - k_min + 1,1);
 tiempos_por_k = zeros(k_max - k_min + 1,1);
+
+mejores_asignaciones_por_corrida = cell(k_max - k_min + 1, no_corridas);
+mejores_puntajes_por_corrida = cell(k_max - k_min + 1, no_corridas);
+
+% === Progreso general del proceso ===
+total_iteraciones = (k_max - k_min + 1) * no_corridas;
+contador_global = 0;
+disp('Avance: ');
+hora_actual = datetime('now', 'Format', 'HH:mm:ss');
+fprintf(' [%s]: %5.1f %% (k = 0, corrida = 0 de %2d)\n', hora_actual, 100 * contador_global / total_iteraciones, no_corridas);
 
 for k=k_min: k_max
     col_k = k - k_min + 1;
     tic;
 
-    puntajes_corrida = zeros(no_corridas, 1); % Inicializar el vector de objetivos para cada corrida
+    puntajes_corrida = zeros(no_corridas, 1); % Guardará el mejor puntaje por corrida
     
-    mejor_puntaje = inf;
-    mejor_asignacion = [];
+    mejor_puntaje = inf; % Inicializa con un valor muy alto
+    mejor_asignacion = []; % Variable para guardar la mejor asignación de clústeres
 
     for corrida=1:no_corridas
-        % generar una solucion inial
+        % generar una solucion inicial
         asignacion_actual = randi(k,n,1);
         puntajes_corrida(corrida,1)=evaluar(X, asignacion_actual, k); % Evaluar la calidad de esa solución
-        eval_por_corrida_y_k(corrida,col_k) = eval_por_corrida_y_k(corrida,col_k) + 1;
+        no_evaluaciones_por_corrida_y_k(corrida,col_k) = no_evaluaciones_por_corrida_y_k(corrida,col_k) + 1;
         
-        % Busca meejor vecino
-        mejora=0;
-        while mejora < max_inter_sin_mejora
+        % Busca mejor vecino
+        contador_sin_mejora = 0;
+        while contador_sin_mejora < max_inter_sin_mejora
             
             puntajes_vecinos=zeros(no_vecinos,1);
             vecinos = cell(no_vecinos, 1);
@@ -53,31 +63,35 @@ for k=k_min: k_max
                 
                 puntajes_vecinos(v)=evaluar(X, vecino_candidato, k);
                 vecinos{v} = vecino_candidato;
-                eval_por_corrida_y_k(corrida,col_k) = eval_por_corrida_y_k(corrida,col_k) + 1;
+                no_evaluaciones_por_corrida_y_k(corrida,col_k) = no_evaluaciones_por_corrida_y_k(corrida,col_k) + 1;
             end
             % Buscar mínimo objetivo_vecino
             [mejor_valor, idx_mejor]=min(puntajes_vecinos);
             if mejor_valor<puntajes_corrida(corrida)
-                
-                asignacion_actual=vecinos{idx_mejor};
-                
-                if abs(puntajes_corrida(corrida) - mejor_valor) < epsilon
-                    mejor_puntaje = puntajes_corrida(corrida);
-                    mejor_asignacion = asignacion_actual; % Actualizar la mejor asignación encontrada
-
-                    mejora = mejora + 1;
-                else
-                    mejora=0;
-                end
                 puntajes_corrida(corrida)=mejor_valor;
+                asignacion_actual=vecinos{idx_mejor};
+                if puntajes_corrida(corrida) - mejor_valor < epsilon
+                    contador_sin_mejora = contador_sin_mejora + 1;
+                else
+                    contador_sin_mejora=0;
+                end 
+
+                if mejor_valor < mejor_puntaje
+                    mejor_puntaje = mejor_valor;
+                    mejor_asignacion = asignacion_actual;
+                end
             else
-                mejora=1+mejora;
-            end
+                contador_sin_mejora = contador_sin_mejora + 1;
+            end             
         end
+        contador_global = contador_global + 1;
+        hora_actual = datetime('now', 'Format', 'HH:mm:ss');
+        fprintf(repmat('\b', 1, 50));
+        fprintf(' [%s]: %5.1f %% (k = %2d, corrida = %2d de %2d)\n', hora_actual, 100 * contador_global / total_iteraciones, k, corrida, no_corridas);
     end
     
-    mejor_objetivo_por_k(col_k) = min(puntajes_corrida); % Guardar el mejor objetivo para el k actual
-    asignaciones{col_k} = mejor_asignacion;
+    mejores_puntajes_por_k(col_k) = min(puntajes_corrida); % Guardar el mejor objetivo para el k actual
+    mejores_asignaciones_por_k{col_k} = mejor_asignacion;
     
     tiempos_por_k(col_k) = toc;
 end
@@ -100,6 +114,9 @@ function [J] = evaluar(X, etiquetas, k)
         end
     end
 end
+%% Muestra el tiempo total de ejecución
+disp('Tiempo total (minutos):');
+disp(sum(tiempos_por_k)/60);
 
 %% Visualización: Método del codo
 % Esta gráfica muestra cómo disminuye la distorsión intra-cluster a medida que aumenta k.
@@ -108,7 +125,7 @@ end
 valores_k = k_min:k_max;
 
 figure;
-plot(valores_k, mejor_objetivo_por_k, '-o', 'LineWidth', 2);
+plot(valores_k, mejores_puntajes_por_k, '-o', 'LineWidth', 2);
 xlabel('Número de clústeres (k)');
 ylabel('Distorsión intra-clúster');
 title('Método del codo para selección de k');
@@ -122,7 +139,7 @@ k_visual = 4 - k_min + 1 ;
 X_reducido = X_pca(:, 1:2);       % Nos quedamos con las dos principales
 
 figure;
-gscatter(X_reducido(:,1), X_reducido(:,2), asignaciones{k_visual}); % asignación generada para último k evaluado
+gscatter(X_reducido(:,1), X_reducido(:,2), mejores_asignaciones_por_k{k_visual}); % asignación generada para último k evaluado
 xlabel('Componente principal 1');
 ylabel('Componente principal 2');
 title(['Visualización PCA para k = ', num2str(k_visual)]);
@@ -132,13 +149,13 @@ grid on;
 %% Comparación visual para múltiples valores de k
 % Compara en subplots cómo se agrupan los datos para diferentes valores de k
 
-valores_k_visuales = [3, 4, 5, 6];   % Puedes ajustar los valores según los resultados
+valores_k_visuales = [2, 3, 4, 5, 6, 7, 8, 9, 10];   % Puedes ajustar los valores según los resultados
 figure;
 
 for i = 1:length(valores_k_visuales)
     k = valores_k_visuales(i);
-    subplot(2, 2, i);  % Mosaico 2x2
-    gscatter(X_reducido(:,1), X_reducido(:,2), asignaciones{k});
+    subplot(3, 3, i);  % Mosaico 2x2
+    gscatter(X_reducido(:,1), X_reducido(:,2), mejores_asignaciones_por_k{i});
     title(['k = ', num2str(k)]);
     xlabel('PC1'); ylabel('PC2');
     axis tight;
@@ -150,7 +167,7 @@ sgtitle('Comparación de clustering con diferentes valores de k');
 %% Evaluaciones promedio por valor de k
 % Esta gráfica muestra cuántas veces se evaluó la función por k en promedio
 
-promedio_eval_por_k = mean(eval_por_corrida_y_k, 1);  % Promedio por columna (corridas)
+promedio_eval_por_k = mean(no_evaluaciones_por_corrida_y_k, 1);  % Promedio por columna (corridas)
 
 figure;
 plot(k_min:k_max, promedio_eval_por_k, '-o', 'LineWidth', 2);
