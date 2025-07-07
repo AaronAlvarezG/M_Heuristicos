@@ -8,20 +8,37 @@ n = size(X,1);
 k_min = 2;
 k_max = 10;
 
-% Parámetros de asenso en la montaña
-max_inter_sin_mejora = 1000;
-epsilon = .000000001; 
-no_vecinos = 20;
-no_corridas = 30;
+%% === Selección de modo de ejecución ===
+modo = 2;  % Opciones: 'rapido', 'equilibrado', 'preciso'
+
+switch lower(modo)
+    case 1 %'rapido'
+        no_corridas = 3;
+        no_vecinos = 3;
+        max_inter_sin_mejora = 20;
+        epsilon = 1e-2;
+    case 2 %'equilibrado'
+        no_corridas = 10;
+        no_vecinos = 10;
+        max_inter_sin_mejora = 50;
+        epsilon = 1e-5;
+    case 3 %'preciso'
+        no_corridas = 30;
+        no_vecinos = 20;
+        max_inter_sin_mejora = 200;
+        epsilon = 1e-9;
+    otherwise
+        error('Modo de ejecución no reconocido. Usa "rapido", "equilibrado" o "preciso".');
+end
 
 % Incializar estructuras para evaluación
-no_evaluaciones_por_corrida_y_k = zeros(no_corridas, k_max - k_min + 1);
-mejores_puntajes_por_k = zeros(k_max - k_min + 1, 1);
-mejores_asignaciones_por_k = cell(k_max - k_min + 1,1);
-tiempos_por_k = zeros(k_max - k_min + 1,1);
+no_evaluaciones_por_corrida_y_k = zeros(no_corridas, k_max - k_min + 1); % contador de evaluaciones por corrida en cada kluster
+mejor_puntaje_de_cada_k = zeros(k_max - k_min + 1, 1); % almcena el mejor puntaje de cada kluster
+mejor_asignacion_de_cada_k = cell(k_max - k_min + 1,1); % almacena la mejor asignación de cada kluster
+tiempo_de_cada_k = zeros(k_max - k_min + 1,1); % almacena el teimpo de ejecución de cada kluster
 
-mejores_asignaciones_por_corrida = cell(k_max - k_min + 1, no_corridas);
-historial_de_puntajes_por_corrida = cell(k_max - k_min + 1, no_corridas);
+mejor_asignacion_en_cada_kluster_y_corrida = cell(k_max - k_min + 1, no_corridas);
+historial_de_puntajes_de_cada_kluster_y_corrida = cell(k_max - k_min + 1, no_corridas);
 
 % === Progreso general del proceso ===
 total_iteraciones = (k_max - k_min + 1) * no_corridas;
@@ -34,17 +51,18 @@ for k=k_min: k_max
     col_k = k - k_min + 1;
     tic;
 
-    puntajes_corrida = zeros(no_corridas, 1); % Guardará el mejor puntaje por corrida
+    mejor_puntaje_de_cada_corrida = zeros(no_corridas, 1); % Guardará el mejor puntaje por corrida
     
     mejor_puntaje = inf; % Inicializa con un valor muy alto
     mejor_asignacion = []; % Variable para guardar la mejor asignación de clústeres
-    puntajes_iteracion = [];    
+    
 
     for corrida=1:no_corridas
+        puntajes_iteracion = [];    
         % generar una solucion inicial
-        asignacion_actual = randi(k,n,1);
-        puntaje_actual = evaluar(X, asignacion_actual, k); % Evaluar la calidad de esa solución
-        puntajes_corrida(corrida,1) = puntaje_actual;
+        mejor_asignacion_de_la_corrida = randi(k,n,1);
+        puntaje_actual = evaluar(X, mejor_asignacion_de_la_corrida, k); % Evaluar la calidad de esa solución
+        mejor_puntaje_de_cada_corrida(corrida,1) = puntaje_actual;
         puntajes_iteracion(end + 1) = puntaje_actual;
 
         no_evaluaciones_por_corrida_y_k(corrida,col_k) = no_evaluaciones_por_corrida_y_k(corrida,col_k) + 1;
@@ -57,7 +75,7 @@ for k=k_min: k_max
             vecinos = cell(no_vecinos, 1);
 
             for v=1:no_vecinos
-                vecino_candidato = asignacion_actual;
+                vecino_candidato = mejor_asignacion_de_la_corrida;
                 idx = randi(n);
                 nueva_etiqueta = randi(k);
                 while nueva_etiqueta == vecino_candidato(idx)
@@ -71,12 +89,12 @@ for k=k_min: k_max
             end
             % Buscar mínimo objetivo_vecino
             [mejor_valor, idx_mejor]=min(puntajes_vecinos);
-            if mejor_valor<puntajes_corrida(corrida)
-                puntajes_corrida(corrida) = mejor_valor;
-                asignacion_actual = vecinos{idx_mejor};
+            if mejor_valor < puntaje_actual
+                puntaje_actual = mejor_valor;
+                
                 puntajes_iteracion(end + 1) = mejor_valor;
 
-                if puntajes_corrida(corrida) - mejor_valor < epsilon
+                if abs(puntaje_actual - mejor_valor) < epsilon
                     contador_sin_mejora = contador_sin_mejora + 1;
                 else
                     contador_sin_mejora=0;
@@ -84,26 +102,28 @@ for k=k_min: k_max
 
                 if mejor_valor < mejor_puntaje
                     mejor_puntaje = mejor_valor;
-                    mejor_asignacion = asignacion_actual;
+                    mejor_asignacion = mejor_asignacion_de_la_corrida;
                 end
+                mejor_asignacion_de_la_corrida = vecinos{idx_mejor};
             else
                 contador_sin_mejora = contador_sin_mejora + 1;
             end             
         end
         % Almacenar el mejor puntaje y asignación de la corrida actual
-        mejores_asignaciones_por_corrida{col_k} = mejor_asignacion;
-        historial_de_puntajes_por_corrida{col_k, corrida} = puntajes_iteracion;
+        mejor_asignacion_en_cada_kluster_y_corrida{col_k, corrida} = mejor_asignacion;
+        historial_de_puntajes_de_cada_kluster_y_corrida{col_k, corrida} = puntajes_iteracion;
 
         contador_global = contador_global + 1;
         hora_actual = datetime('now', 'Format', 'HH:mm:ss');
         fprintf(repmat('\b', 1, 50));
         fprintf(' [%s]: %5.1f %% (k = %2d, corrida = %2d de %2d)\n', hora_actual, 100 * contador_global / total_iteraciones, k, corrida, no_corridas);
+        mejor_puntaje_de_cada_corrida(corrida) = puntaje_actual;
     end
+    mejor_puntaje_de_cada_corrida(corrida) = puntaje_actual;
+    mejor_puntaje_de_cada_k(col_k) = min(mejor_puntaje_de_cada_corrida); % Guardar el mejor objetivo para el k actual
+    mejor_asignacion_de_cada_k{col_k} = mejor_asignacion;
     
-    mejores_puntajes_por_k(col_k) = min(puntajes_corrida); % Guardar el mejor objetivo para el k actual
-    mejores_asignaciones_por_k{col_k} = mejor_asignacion;
-    
-    tiempos_por_k(col_k) = toc;
+    tiempo_de_cada_k(col_k) = toc;
 end
 
 
@@ -126,7 +146,7 @@ function [J] = evaluar(X, etiquetas, k)
 end
 %% Muestra el tiempo total de ejecución
 disp('Tiempo total (minutos):');
-disp(sum(tiempos_por_k)/60);
+disp(sum(tiempo_de_cada_k)/60);
 
 %% Visualización: Método del codo
 % Esta gráfica muestra cómo disminuye la distorsión intra-cluster a medida que aumenta k.
@@ -135,29 +155,19 @@ disp(sum(tiempos_por_k)/60);
 valores_k = k_min:k_max;
 
 figure;
-plot(valores_k, mejores_puntajes_por_k, '-o', 'LineWidth', 2);
+plot(valores_k, mejor_puntaje_de_cada_k, '-o', 'LineWidth', 2);
 xlabel('Número de clústeres (k)');
 ylabel('Distorsión intra-clúster');
 title('Método del codo para selección de k');
 grid on;
 
-%% Visualización PCA con última asignación (de k = 4, por ejemplo)
-% Proyectamos los datos a 2D con PCA para visualizar la asignación de clústeres.
+
+%% Comparación visual para múltiples valores de k
+% Compara en subplots cómo se agrupan los datos para diferentes valores de k
 
 k_visual = 4 - k_min + 1 ;
 [~, X_pca] = pca(X);              % PCA: todas las componentes
 X_reducido = X_pca(:, 1:2);       % Nos quedamos con las dos principales
-
-figure;
-gscatter(X_reducido(:,1), X_reducido(:,2), mejores_asignaciones_por_k{k_visual}); % asignación generada para último k evaluado
-xlabel('Componente principal 1');
-ylabel('Componente principal 2');
-title(['Visualización PCA para k = ', num2str(k_visual)]);
-legend('show');
-grid on;
-
-%% Comparación visual para múltiples valores de k
-% Compara en subplots cómo se agrupan los datos para diferentes valores de k
 
 valores_k_visuales = [2, 3, 4, 5, 6, 7, 8, 9, 10];   % Puedes ajustar los valores según los resultados
 figure;
@@ -165,7 +175,7 @@ figure;
 for i = 1:length(valores_k_visuales)
     k = valores_k_visuales(i);
     subplot(3, 3, i);  % Mosaico 2x2
-    gscatter(X_reducido(:,1), X_reducido(:,2), mejores_asignaciones_por_k{i});
+    gscatter(X_reducido(:,1), X_reducido(:,2), mejor_asignacion_de_cada_k{i});
     title(['k = ', num2str(k)]);
     xlabel('PC1'); ylabel('PC2');
     axis tight;
@@ -191,7 +201,7 @@ grid on;
 valores_k = k_min:k_max;
 
 figure;
-plot(valores_k, tiempos_por_k, '-o', 'LineWidth', 2);
+plot(valores_k, tiempo_de_cada_k, '-o', 'LineWidth', 2);
 xlabel('Número de clústeres (k)');
 ylabel('Tiempo de ejecución (segundos)');
 title('Tiempo de ejecución por valor de k');
@@ -202,7 +212,7 @@ grid on;
 k_ejemplo = 10; corrida_ejemplo = 1;
 
 figure;
-puntajes = historial_de_puntajes_por_corrida{k_ejemplo - k_min + 1, corrida_ejemplo};
+puntajes = historial_de_puntajes_de_cada_kluster_y_corrida{k_ejemplo - k_min + 1, corrida_ejemplo};
 plot(puntajes, '-o');
 xlabel('Iteración');
 ylabel('Función objetivo');

@@ -9,14 +9,49 @@ k_min = 2;
 k_max = 10;
 
 % Parámetros para Recocido Simulado
-T_inicial = 2000;
-T_final = 1e-2;
-alpha = 0.95; % factor de enfriamiento
-no_iteraciones_por_temperatura = 50;
-no_vecinos = 5;
-no_corridas = 5;
-no_iteraciones_sin_mejora = 1000;
+% T_inicial = 2000;
+% T_final = 1e-2;
+% alpha = 0.95; % factor de enfriamiento
+% no_iteraciones_por_temperatura = 50;
+% no_vecinos = 5;
+% no_corridas = 5;
+% no_iteraciones_sin_mejora = 1000;
 
+opcion = 2;  % Opciones: 'rapido', 'equilibrado', 'preciso'
+switch lower(opcion)
+        case 1 %'rapido'
+            disp('rapido');
+            T_inicial = 500;
+            T_final = 1e-1;
+            alpha = 0.85;
+            no_iteraciones_por_temperatura = 10;
+            no_vecinos = 3;
+            no_corridas = 3;
+            no_iteraciones_sin_mejora = 100;
+
+        case 2 %'balanceado'
+            disp('balanceado');
+            T_inicial = 2000;
+            T_final = 1e-2;
+            alpha = 0.95;
+            no_iteraciones_por_temperatura = 50;
+            no_vecinos = 5;
+            no_corridas = 5;
+            no_iteraciones_sin_mejora = 1000;
+
+        case 3 %'preciso'
+            disp('preciso')
+            T_inicial = 5000;
+            T_final = 1e-4;
+            alpha = 0.99;
+            no_iteraciones_por_temperatura = 100;
+            no_vecinos = 10;
+            no_corridas = 10;
+            no_iteraciones_sin_mejora = 3000;
+
+        otherwise
+            error('Opción no reconocida. Usa: ''rapido'', ''balanceado'' o ''preciso''.');
+end
 % Incializar estructuras para evaluación
 eval_por_corrida_y_k = zeros(no_corridas, k_max - k_min + 1);
 mejor_objetivo_por_k = zeros(k_max - k_min + 1, 1);
@@ -151,3 +186,25 @@ bar(k_min:k_max, tiempos_por_k)
 xlabel('Número de Clústeres (k)')
 ylabel('Tiempo de ejecución (segundos)')
 title('Tiempo por valor de k')
+
+%% Comparación visual para múltiples valores de k
+% Compara en subplots cómo se agrupan los datos para diferentes valores de k
+
+k_visual = 4 - k_min + 1 ;
+[~, X_pca] = pca(X);              % PCA: todas las componentes
+X_reducido = X_pca(:, 1:2);       % Nos quedamos con las dos principales
+
+valores_k_visuales = [2, 3, 4, 5, 6, 7, 8, 9, 10];   % Puedes ajustar los valores según los resultados
+figure;
+
+for i = 1:length(valores_k_visuales)
+    k = valores_k_visuales(i);
+    subplot(3, 3, i);  % Mosaico 2x2
+    gscatter(X_reducido(:,1), X_reducido(:,2), asignaciones{i});
+    title(['k = ', num2str(k)]);
+    xlabel('PC1'); ylabel('PC2');
+    axis tight;
+    grid on;
+end
+
+sgtitle('Comparación de clustering con diferentes valores de k');
