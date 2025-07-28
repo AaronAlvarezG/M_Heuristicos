@@ -15,18 +15,18 @@ switch lower(modo)
     case 1 %'rapido'
         no_corridas = 3;
         no_vecinos = 3;
-        max_inter_sin_mejora = 20;
-        epsilon = 1e-2;
+        max_inter_sin_mejora = 200;
+        epsilon = 1e-8;
     case 2 %'equilibrado'
         no_corridas = 10;
         no_vecinos = 10;
-        max_inter_sin_mejora = 50;
-        epsilon = 1e-5;
+        max_inter_sin_mejora = 200;
+        epsilon = 1e-8;
     case 3 %'preciso'
         no_corridas = 30;
         no_vecinos = 20;
         max_inter_sin_mejora = 200;
-        epsilon = 1e-9;
+        epsilon = 1e-8;
     otherwise
         error('Modo de ejecución no reconocido. Usa "rapido", "equilibrado" o "preciso".');
 end
