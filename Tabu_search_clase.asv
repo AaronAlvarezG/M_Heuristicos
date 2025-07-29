@@ -11,7 +11,7 @@ Distancia=[0 21.71931168 40.43651815 26.7211246 3.6138622 7.486360932 4.00359838
 10.77398719 11.19402073 30.08896808 23.07995017 7.164719115 18.16366703 11.69562311 4.638156962 20.57368465 11.68587609 0];
 
 Tamano_lista_tabu=3;
-Numero_iteraciones=10;
+Numero_iteraciones=1000;
 Corridas=30;
 [puntos,~]=size(Distancia);
 historial_costos = zeros(Corridas, Numero_iteraciones);
