@@ -42,7 +42,7 @@ for corrida = 1: Corridas
             lista(movimientos,3)=0;
         end
     end
-    %% Bucle principal de iteraciones
+        
     for iteraciones=1:Numero_iteraciones
         % Se generan todos los vecinos candidatos
         Candidatos=[];
